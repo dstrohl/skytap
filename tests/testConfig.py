@@ -63,3 +63,11 @@ def test_config_str():
 def test_config_contains():
     assert 'user' in Config
     assert 'not_a_config' not in Config
+
+def test_config_set():
+    Config.user = 'test_user'
+    assert 'test_user' == Config.user
+
+@nose.tools.raises(AttributeError)
+def test_config_bad_set():
+    Config.blah = 'foobar'
