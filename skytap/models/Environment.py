@@ -68,7 +68,7 @@ from skytap.models.Notes import Notes
 from skytap.models.SkytapResource import SkytapResource
 from skytap.models.UserData import UserData
 from skytap.models.Vms import Vms
-
+from skytap.models.SharingPortals import SharingPortals
 
 class Environment(SkytapResource, Suspendable):
 
@@ -114,6 +114,12 @@ class Environment(SkytapResource, Suspendable):
             labels_json = api.rest(self.url + '/labels')
             self.labels = Labels(labels_json, self.url)
             return self.labels
+
+        if key in ('sharing_portals', 'publish_sets'):
+            api = ApiClient()
+            portals_json = api.rest(self.url + '/publish_sets')
+            self.published_sets = SharingPortals(portals_json, self.url)
+            return self.published_sets
 
         return super(Environment, self).__getattr__(key)
 

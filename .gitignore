@@ -14,3 +14,4 @@ _templates/
 tests/testHierarchy.py
 .idea/
 set_token.bat
+skytap_token.py

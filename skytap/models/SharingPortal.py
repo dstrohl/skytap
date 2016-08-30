@@ -45,3 +45,6 @@ class SharingPortal(NewSTResource, SkytapResource):
     def __init__(self, portal_json):
         super(SharingPortal, self).__init__(portal_json)
 
+
+        self._new_convert_data_elements()
+
