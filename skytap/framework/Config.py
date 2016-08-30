@@ -40,6 +40,23 @@ class ConfigType(type):
             raise AttributeError
         return cls.config_data[key]
 
+    def __setattr__(cls, key, value):
+        """Make the config values accessible.
+
+        This allows all config values to be available via calls like:
+        Config.user
+        """
+        if key in cls.config_data:
+            cls.config_data[key] = value
+        else:
+            # These are called during nose setup before logging is turned off
+            # during testing. Not the best, but tests look better with these
+            # supressed.
+            if key not in ['__test__', 'address', 'im_class', '__self__']:
+                Utils.error("Tried to access config value '" +
+                            str(key) + "', which doesn't exist.")
+            super(ConfigType, cls).__setattr__(key, value)
+
     def __len__(cls):
         """Expose how many config items we have."""
         return len(cls.config_data)
