@@ -13,7 +13,10 @@ initial_config = {'user': '',           # Should only be defined in env vars.
                   'retry_wait': 10,     # Skytap recommends waiting 10 sec.
                   'add_note_on_state_change': True
                   }
-
+int_keys = ('log_level', 'max_http_attempts', 'retry_wait')
+bool_keys = ('add_note_on_state_change',)
+bool_fix = {'true': True, 'True': True, 'TRUE':True, 'Yes': True, True: True,
+            'false': False, 'False': False, 'FALSE':False,'No': False, False: False}
 
 class ConfigType(type):
 
@@ -38,6 +41,22 @@ class ConfigType(type):
                 Utils.error("Tried to access config value '" +
                             str(key) + "', which doesn't exist.")
             raise AttributeError
+
+        if os.environ.get('READTHEDOCS', None) != 'True':
+            if key == 'base_url' and cls.config_data['base_url'] != 'https://cloud.skytap.com':
+                Utils.warning('Base URL is not Skytap\'s recommended value. ' +
+                              'This very likely will break things.')
+
+            if key == 'token' and len(cls.config_data['token']) == 0:
+                Utils.error('No environment variable SKYTAP_TOKEN found. ' +
+                            'Set this variable and try again.')
+                raise ValueError
+
+            if key == 'user' and len(cls.config_data['user']) == 0:
+                Utils.error('No environment variable SKYTAP_USER found. ' +
+                            'Set this variable and try again.')
+                raise ValueError
+
         return cls.config_data[key]
 
     def __setattr__(cls, key, value):
@@ -47,15 +66,21 @@ class ConfigType(type):
         Config.user
         """
         if key in cls.config_data:
+            if key in int_keys:
+                value = int(value)
+            elif key in bool_keys:
+                value = bool_fix[value]
+
             cls.config_data[key] = value
+            if key == 'log_level':
+                Utils.log_level(value)
         else:
             # These are called during nose setup before logging is turned off
             # during testing. Not the best, but tests look better with these
             # supressed.
-            if key not in ['__test__', 'address', 'im_class', '__self__']:
-                Utils.error("Tried to access config value '" +
-                            str(key) + "', which doesn't exist.")
-            super(ConfigType, cls).__setattr__(key, value)
+
+            # super(ConfigType, cls).__setattr__(key, value)
+            raise AttributeError('Key does not exist in Config')
 
     def __len__(cls):
         """Expose how many config items we have."""
@@ -103,6 +128,14 @@ class ConfigType(type):
         """
         return iter(cls.config_data)
 
+    def __call__(cls, *args, **kwargs):
+        if args:
+            if len(args) != 2:
+                raise AttributeError('if args are passed, there must be 2 (user, token')
+            cls.config_data['user'] = args[0]
+            cls.config_data['token'] = args[1]
+        if kwargs:
+            cls.config_data.update(kwargs)
 
 @six.add_metaclass(ConfigType)
 class Config(object):
@@ -119,12 +152,13 @@ class Config(object):
 for key in Config:
     env_val = "SKYTAP_" + key.upper()
     if env_val in os.environ:
-        Config.config_data[key] = os.environ[env_val]
-        try:
-            Config.config_data[key] = int(Config.config_data[key])
-        except ValueError:
-            pass
-
+        setattr(Config, key, os.environ[env_val])
+        # Config.config_data[key] = os.environ[env_val]
+        # try:
+        #     set_Config.config_data[key] = int(Config.config_data[key])
+        # except ValueError:
+        #     pass
+"""
 if os.environ.get('READTHEDOCS', None) != 'True':
     if Config.base_url != 'https://cloud.skytap.com':
         Utils.warning('Base URL is not Skytap\'s recommended value. ' +
@@ -139,5 +173,5 @@ if os.environ.get('READTHEDOCS', None) != 'True':
         Utils.error('No environment variable SKYTAP_USER found. ' +
                     'Set this variable and try again.')
         raise ValueError
-
+"""
 Utils.log_level(Config.log_level)

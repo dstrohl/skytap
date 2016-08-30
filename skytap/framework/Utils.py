@@ -101,14 +101,19 @@ def convert_date(date_str, tz_str=None):
 
     elif short_time_str is not None and short_date_str is None:
         # date only
-        naive_ret = time(*':'.split(short_time_str))
+        if short_time_str.count(':') == 1:
+            naive_ret = datetime.strptime(short_time_str, '%H:%M').time()
+        else:
+            naive_ret = datetime.strptime(short_time_str, '%H:%M:%S').time()
 
     if naive_ret is not None:
         if has_tz_info:
             if short_tz_str is not None:
                 offset_str = short_tz_str
+            elif tz_str[0] in ('-', '+') and len(tz_str) == 5:
+                offset_str = tz_str
             else:
-                offset_str = TIMEZONES.get(tz_str, '-00:00')
+                offset_str = TIMEZONES.get(tz_str, '-0000')
 
             offset = int(offset_str[-4:-2]) * 60 + int(offset_str[-2:])
             if offset_str[0] == "-":
@@ -118,8 +123,7 @@ def convert_date(date_str, tz_str=None):
         else:
             return naive_ret
     else:
-        naive_ret = date(*'/'.split(short_date_str))
-        return
+        return datetime.strptime(short_date_str, '%Y/%m/%d').date()
 
 
 class FixedOffset(tzinfo):

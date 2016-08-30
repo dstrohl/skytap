@@ -7,3 +7,4 @@ from skytap.Quotas import Quotas  # noqa
 from skytap.Templates import Templates  # noqa
 from skytap.Users import Users  # noqa
 from skytap.Vpns import Vpns  # noqa
+from skytap.framework.Config import Config
