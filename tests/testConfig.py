@@ -71,3 +71,20 @@ def test_config_set():
 @nose.tools.raises(AttributeError)
 def test_config_bad_set():
     Config.blah = 'foobar'
+
+
+def test_config_set_with_call_args():
+    Config('test_user', '12345')
+    assert 'test_user' == Config.user
+    assert '12345' == Config.token
+
+
+@nose.tools.raises(AttributeError)
+def test_config_set_with_call_args_fail():
+    Config('test_user', '12345', 'blah')
+
+
+def test_config_set_with_call_kwargs():
+    Config(token='test_user', user='12345')
+    assert 'test_user' == Config.token
+    assert '12345' == Config.user
