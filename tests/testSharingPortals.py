@@ -2,6 +2,7 @@
 import json
 import os
 import sys
+from datetime import date, datetime, time
 
 sys.path.append('..')
 from skytap.Environments import Environments  # noqa
@@ -11,74 +12,57 @@ try:
     from skytap_token import SKYTAP_TOKEN, SKYTAP_USER
 except:
     raise EnvironmentError('No skytap token file')
-# environments = Environments()
+
 
 Config(SKYTAP_USER, SKYTAP_TOKEN)
 
 SKYTAP_ENV_WITH_SHARING_PORTAL = 9665596
 
+environment = Environments()[SKYTAP_ENV_WITH_SHARING_PORTAL]
+portals = environment.sharing_portals
+portal = portals.first()
+
 def test_get_sharing_portal():
-    tmp_env = Environments()[9665596]
-    tmp_portals = tmp_env.sharing_portals
+    assert len(portals) >= 1
 
-    assert len(tmp_portals) >= 1
+def test_sp_field_defs():
+    assert isinstance(portal.id, int)
+    assert isinstance(portal.runtime_limit, int) or portal.runtime_limit is None
+    assert isinstance(portal.expiration_date, datetime) or portal.expiration_date is None
+    assert isinstance(portal.runtime_left_in_seconds, int) or portal.runtime_left_in_seconds is None
 
+    assert isinstance(portal.multiple_url, bool)
+    assert isinstance(portal.sso_required, bool)
+    assert isinstance(portal.anonymous_smart_rdp, bool)
+    assert isinstance(portal.custom_content_enabled, bool)
+    assert isinstance(portal.custom_content_is_default, bool)
 
-'''
+    assert isinstance(portal.end_time, time) or portal.end_time is None
 
-def test_do_some_environments_exist():
-    """Check to see if we have some environments returned."""
-    assert len(environments) > 0
+    assert isinstance(portal.start_time, time) or portal.start_time is None
 
-
-def test_svm_count():
-    """Ensure our SVM count seems correct."""
-    assert environments.svms() > 0
-    count = 0
-    for l in list(environments.data):
-        e = environments[l]
-        count += e.svms
-    msg = ('SVM count mismatch. Environments says: ' +
-           str(environments.svms()) +
-           ', actual count: ' + str(count))
-    assert count == environments.svms(), msg
-
-
-def test_vm_count():
-    """Ensure our VMs seem correct."""
-    assert environments.vm_count() > 0, 'Total VM count should be over 1.'
-    count = 0
-    for l in list(environments.data):
-        e = environments[l]
-        count += e.vm_count
-    msg = ('VM count mismatch. Environments says: ' +
-           str(environments.vm_count()) +
-           ', actual count: ' + str(count))
-    assert count == environments.vm_count(), msg
-
-
-def test_svm_vs_vm_count():
-    """Make sure svm count is greater than vm count."""
-    assert environments.svms() >= environments.vm_count()
+    for vm in portal.vms:
+        assert isinstance(vm['id'], int)
+        assert isinstance(vm['run_and_use'], bool)
+        assert isinstance(vm['error'], bool)
 
 
 def test_environment_id():
     """Ensure environments have ids."""
-    for l in list(environments.data):
-        e = environments[l]
+    for l in list(portals.data):
+        e = portals[l]
         assert e.id > 0
 
 
 def test_environment_json():
     """Ensure environment json conversion seems to be working."""
-    for l in list(environments.data):
-        e = environments[l]
+    for l in list(portals.data):
+        e = portals[l]
         assert len(json.dumps(e.json())) > 0
 
 
 def test_environment_str_conversion():
     """Ensure environment str converion works."""
-    for l in list(environments.data):
-        e = environments[l]
+    for l in list(portals.data):
+        e = portals[l]
         assert str(e) == e.name
-'''
