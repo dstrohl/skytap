@@ -7,13 +7,15 @@ import time
 
 from skytap.framework.Config import Config
 import skytap.framework.Utils as Utils
-
+from skytap.framework.Fixtures import SimulatorManager
+from skytap.framework.ApiExceptions import *
 requests.packages.urllib3.disable_warnings()
 
 
 class ApiClient(object):
 
     """Wrap the calls to the Skytap API."""
+    _is_test_fixture = False
 
     def __init__(self):
         """Initial setup of things.
@@ -23,27 +25,37 @@ class ApiClient(object):
         """
         super(ApiClient, self).__init__()
 
-        if not Config.base_url:
-            raise ValueError('Invalid base_url')
+        if self._is_test_fixture:
+            self._sim_manager = SimulatorManager()
+            self.auth = ('test_user', 'test_token')
+            self.cmds = {
+                'GET': 'get',
+                'PUT': 'put',
+                'POST': 'post',
+                'DELETE': 'delete'
+            }
+        else:
+            if not Config.base_url:
+                raise ValueError('Invalid base_url')
 
-        if not Config.user:
-            raise ValueError('Invalid api_user')
+            if not Config.user:
+                raise ValueError('Invalid api_user')
 
-        if not Config.token:
-            raise ValueError('Invalid api_token')
+            if not Config.token:
+                raise ValueError('Invalid api_token')
 
-        self.auth = (Config.user, Config.token)
+            self.auth = (Config.user, Config.token)
+
+            self.cmds = {
+                'GET': requests.get,
+                'PUT': requests.put,
+                'POST': requests.post,
+                'DELETE': requests.delete
+            }
 
         self.last_headers = None
         self.last_status = 0
         self.last_range = 0
-
-        self.cmds = {
-            'GET': requests.get,
-            'PUT': requests.put,
-            'POST': requests.post,
-            'DELETE': requests.delete
-        }
 
         self.headers = {
             'Accept': 'application/json',
@@ -61,7 +73,7 @@ class ApiClient(object):
         Fail (return False) if we've exceeded our retry amount.
         """
         if resp is None:
-            raise ValueError('A response wasn\'t received')
+            raise ValueError("A response wasn't received")
 
         if 200 <= resp.status_code < 300:
             return True
@@ -69,7 +81,22 @@ class ApiClient(object):
         # If we made it this far, we need to handle an exception
         if attempts >= Config.max_http_attempts or (resp.status_code != 429 and
                                                     resp.status_code != 423):
-            raise Exception(json.loads(resp.text))
+            if resp.status_code == 404:
+                raise Skytap404NotFoundError(resp)
+            elif resp.status_code == 401:
+                raise Skytap401UnauthorizedError(resp)
+            elif resp.status_code == 409:
+                raise Skytap409ConflictError(resp)
+            elif resp.status_code == 422:
+                raise Skytap422InvalidParamError(resp)
+            elif resp.status_code == 423:
+                raise Skytap423BusyError(resp)
+            elif resp.status_code == 429:
+                raise Skytap429TooManyRequestsError(resp)
+            elif resp.status_code == 500:
+                raise Skytap500SystemError(resp)
+            else:
+                raise SkytapOtherSystemError(resp)
 
         if resp.status_code == 423:  # "Busy"
             if 'Retry-After' in resp.headers:
@@ -144,10 +171,16 @@ class ApiClient(object):
 
         url += self._dict_to_query_params(params)
 
-        response = self.cmds[cmd](url,
-                                  headers=self.headers,
-                                  auth=self.auth,
-                                  params=data)
+        if self._is_test_fixture:
+            # if this should use the text fixture, send the requests there instead of the actual requests lib.
+            request = requests.Request(cmd, url, headers=self.headers, auth=self.auth, params=data)
+            response = self._sim_manager.respond(request, attempts)
+
+        else:
+            response = self.cmds[cmd](url,
+                                      headers=self.headers,
+                                      auth=self.auth,
+                                      params=data)
 
         self.last_status = response.status_code
         self.last_headers = response.headers
